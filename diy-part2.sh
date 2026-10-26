@@ -11,7 +11,7 @@
 #
 #账号:root 密码:无密码
 
-# 1. تعديل عنوان IP الافتراضي إلى 192.168.1.20 (تم تعديله ليطابق طلبك)
+# 1. تعديل عنوان IP الافتراضي إلى 192.168.1.20
 sed -i 's/192.168.1.1/192.168.1.20/g' package/base-files/files/bin/config_generate
 
 # 2. تغيير الثيم الافتراضي إلى Argon
@@ -83,7 +83,8 @@ EOF
 
 # جعل السكريبت قابلاً للتنفيذ
 chmod +x package/base-files/files/etc/uci-defaults/99-custom-ap-wds
-# --- تغيير شعار OpenWrt و LuCI ---
+
+# 6. تغيير شعار OpenWrt و LuCI
 # نسخ الصورة المخصصة لتحل محل شعار ثيم Argon
 if [ -f "$GITHUB_WORKSPACE/custom_logo.png" ]; then
     # المسار الأساسي لشعار ثيم Argon
@@ -94,7 +95,11 @@ if [ -f "$GITHUB_WORKSPACE/custom_logo.png" ]; then
     # استبدال شعار LuCI الافتراضي (لضمان التغيير في كل مكان)
     cp $GITHUB_WORKSPACE/custom_logo.png package/feeds/luci/luci-base/htdocs/luci-static/resources/logo.png
     
-    echo "تم استبدال الشعار بنجاح!"
+    # --- تعديل CSS للثيم ليسمح بشعار عريض (البانر) ---
+    echo ".brand { width: auto !important; min-width: 200px; }" >> feeds/luci/themes/luci-theme-argon/htdocs/luci-static/argon/css/cascade.css
+    echo ".brand .logo img { max-width: 250px !important; height: auto !important; }" >> feeds/luci/themes/luci-theme-argon/htdocs/luci-static/argon/css/cascade.css
+    
+    echo "تم استبدال الشعار وتعديل CSS بنجاح!"
 else
     echo "تحذير: لم يتم العثور على ملف custom_logo.png في المستودع!"
 fi
