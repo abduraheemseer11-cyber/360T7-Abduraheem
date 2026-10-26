@@ -10,15 +10,18 @@
 # Description: OpenWrt DIY script part 2 (After Update feeds)
 #
 #账号:root 密码:无密码
-# Modify default admin IP
-sed -i 's/192.168.1.1/192.168.10.1/g' package/base-files/files/bin/config_generate
-# 把默认主题bootstrap改成argon为源码必选主题（可自行修改您要的,主题名称必须对,比如下面代码的[argon],源码内必须有该主题,要不然编译失败）
+
+# 1. تعديل عنوان IP الافتراضي إلى 192.168.1.20 (تم تعديله ليطابق طلبك)
+sed -i 's/192.168.1.1/192.168.1.20/g' package/base-files/files/bin/config_generate
+
+# 2. تغيير الثيم الافتراضي إلى Argon
 sed -i "s/bootstrap/argon/ig" feeds/luci/collections/luci/Makefile
-# 增加个性名字 ${Author} 默认为你的github帐号,修改时候把 ${Author} 替换成你要的
+
+# 3. إضافة اسم مخصص للنسخة
 # sed -i "s/OpenWrt /${Author} compiled in $(TZ=UTC-8 date "+%Y.%m.%d") @ OpenWrt /g" "package/emortal/default-settings/files/99-default-settings"
 sed -i "s/ImmortalWrt /$(TZ=UTC-8 date "+%Y.%m.%d") @ ImmortalWrt /g" "package/emortal/default-settings/files/99-default-settings"
 
-# 修改插件名字
+# 4. تعديل أسماء بعض الإضافات (الترجمة)
 sed -i 's/"aMule设置"/"电驴下载"/g' `egrep "aMule设置" -rl ./`
 sed -i 's/"网络存储"/"存储"/g' `egrep "网络存储" -rl ./`
 sed -i 's/"Turbo ACC 网络加速"/"网络加速"/g' `egrep "Turbo ACC 网络加速" -rl ./`
@@ -27,7 +30,56 @@ sed -i 's/"终端"/"命令窗"/g' `egrep "终端" -rl ./`
 sed -i 's/"USB 打印服务器"/"打印服务"/g' `egrep "USB 打印服务器" -rl ./`
 sed -i 's/"Web 管理"/"访问控制"/g' `egrep "Web 管理" -rl ./`
 sed -i 's/"管理权"/"改密码"/g' `egrep "管理权" -rl ./`
-
 sed -i 's/"上网时间控制"/"上网控制"/g' `egrep "上网时间控制" -rl ./`
 sed -i 's/"frp 客户端"/"内网穿透"/g' `egrep "frp 客户端" -rl ./`
 sed -i 's/"Nps 内网穿透"/"内网穿透"/g' `egrep "Nps 内网穿透" -rl ./`
+
+# 5. إنشاء سكريبت uci-defaults لتطبيق إعدادات الشبكة والوايرلس (AP + WDS + LAN Bridge)
+mkdir -p package/base-files/files/etc/uci-defaults
+cat << 'EOF' > package/base-files/files/etc/uci-defaults/99-custom-ap-wds
+#!/bin/sh
+# سكريبت يعمل مرة واحدة عند أول إقلاع لتطبيق الإعدادات
+
+# الانتظار قليلاً لضمان اكتمال إقلاع النظام
+sleep 5
+
+# --- إعدادات الشبكة (Network) ---
+# إضافة منفذ WAN إلى جسر LAN (لجعل جميع المنافذ تعمل كـ LAN)
+# ملاحظة: في أجهزة 360T7 يعمل السوفت عادة بنظام DSA، واسم المنفذ يكون 'wan'
+uci add_list network.lan.ports='wan'
+# حذف واجهات WAN و WAN6 (حذف المنطق فقط، المنفذ الفيزيائي تم دمجه في LAN)
+uci -q delete network.wan
+uci -q delete network.wan6
+# تثبيت عنوان IP
+uci set network.lan.ipaddr='192.168.1.20'
+uci set network.lan.netmask='255.255.255.0'
+uci commit network
+
+# --- إعدادات خادم DHCP (DHCP) ---
+# إيقاف خادم DHCPv4
+uci set dhcp.lan.ignore='1'
+# إيقاف خدمات IPv6 (RA, DHCPv6, NDP)
+uci set dhcp.lan.ra='disabled'
+uci set dhcp.lan.dhcpv6='disabled'
+uci set dhcp.lan.ndp='disabled'
+uci commit dhcp
+
+# --- إعدادات اللاسلكي (Wireless) ---
+# تشغيل الراديو (Radio)
+uci set wireless.radio0.disabled='0'
+uci set wireless.radio1.disabled='0'
+# تحويل الواجهات إلى وضع AP مع تفعيل WDS
+uci set wireless.@wifi-iface[0].mode='ap'
+uci set wireless.@wifi-iface[0].wds='1'
+uci set wireless.@wifi-iface[1].mode='ap'
+uci set wireless.@wifi-iface[1].wds='1'
+uci commit wireless
+
+# إعادة تشغيل الشبكة لتطبيق التغييرات فوراً
+/etc/init.d/network restart
+
+exit 0
+EOF
+
+# جعل السكريبت قابلاً للتنفيذ
+chmod +x package/base-files/files/etc/uci-defaults/99-custom-ap-wds
