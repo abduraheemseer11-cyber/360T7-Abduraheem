@@ -83,3 +83,18 @@ EOF
 
 # جعل السكريبت قابلاً للتنفيذ
 chmod +x package/base-files/files/etc/uci-defaults/99-custom-ap-wds
+# --- تغيير شعار OpenWrt و LuCI ---
+# نسخ الصورة المخصصة لتحل محل شعار ثيم Argon
+if [ -f "$GITHUB_WORKSPACE/custom_logo.png" ]; then
+    # المسار الأساسي لشعار ثيم Argon
+    cp $GITHUB_WORKSPACE/custom_logo.png feeds/luci/themes/luci-theme-argon/htdocs/luci-static/argon/img/logo.png
+    # المسار الخاص بالوضع الليلي/النهاري في بعض إصدارات Argon
+    cp $GITHUB_WORKSPACE/custom_logo.png feeds/luci/themes/luci-theme-argon/htdocs/luci-static/argon/img/logo_blue.png
+    
+    # استبدال شعار LuCI الافتراضي (لضمان التغيير في كل مكان)
+    cp $GITHUB_WORKSPACE/custom_logo.png package/feeds/luci/luci-base/htdocs/luci-static/resources/logo.png
+    
+    echo "تم استبدال الشعار بنجاح!"
+else
+    echo "تحذير: لم يتم العثور على ملف custom_logo.png في المستودع!"
+fi
