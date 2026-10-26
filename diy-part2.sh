@@ -103,3 +103,4 @@ if [ -f "$GITHUB_WORKSPACE/custom_logo.png" ]; then
 else
     echo "تحذير: لم يتم العثور على ملف custom_logo.png في المستودع!"
 fi
+
