@@ -18,7 +18,8 @@
 # echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >>feeds.conf.default
 
 # Add apps
-git clone https://github.com/tty228/luci-app-wechatpush package/luci-app-wechatpush
+# تم تعطيل هذه الإضافة لأنها تسبب فشل البناء بسبب نقص حزمة luci-lua-runtime
+# git clone https://github.com/tty228/luci-app-wechatpush package/luci-app-wechatpush
 git clone https://github.com/sirpdboy/luci-app-ddns-go package/luci-app-ddns-go
 
 # Add themes
