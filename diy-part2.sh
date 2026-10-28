@@ -2,14 +2,9 @@
 #
 # Copyright (c) 2019-2020 P3TERX <https://p3terx.com>
 #
-# This is free software, licensed under the MIT License.
-# See /LICENSE for more information.
-#
-# https://github.com/P3TERX/Actions-OpenWrt
 # File name: diy-part2.sh
 # Description: OpenWrt DIY script part 2 (After Update feeds)
 #
-#账号:root 密码:无密码
 
 # 1. تعديل عنوان IP الافتراضي إلى 192.168.1.20
 sed -i 's/192.168.1.1/192.168.1.20/g' package/base-files/files/bin/config_generate
@@ -18,7 +13,6 @@ sed -i 's/192.168.1.1/192.168.1.20/g' package/base-files/files/bin/config_genera
 sed -i "s/bootstrap/argon/ig" feeds/luci/collections/luci/Makefile
 
 # 3. إضافة اسم مخصص للنسخة
-# sed -i "s/OpenWrt /${Author} compiled in $(TZ=UTC-8 date "+%Y.%m.%d") @ OpenWrt /g" "package/emortal/default-settings/files/99-default-settings"
 sed -i "s/ImmortalWrt /$(TZ=UTC-8 date "+%Y.%m.%d") @ ImmortalWrt /g" "package/emortal/default-settings/files/99-default-settings"
 
 # 4. تعديل أسماء بعض الإضافات (الترجمة)
@@ -34,23 +28,19 @@ sed -i 's/"上网时间控制"/"上网控制"/g' `egrep "上网时间控制" -rl
 sed -i 's/"frp 客户端"/"内网穿透"/g' `egrep "frp 客户端" -rl ./`
 sed -i 's/"Nps 内网穿透"/"内网穿透"/g' `egrep "Nps 内网穿透" -rl ./`
 
-# 5. إنشاء سكريبت uci-defaults لتطبيق إعدادات الشبكة والوايرلس (AP + WDS + LAN Bridge)
+# 5. إنشاء سكريبت uci-defaults لتطبيق جميع إعدادات الشبكة والوايرلس
 mkdir -p package/base-files/files/etc/uci-defaults
-cat << 'EOF' > package/base-files/files/etc/uci-defaults/99-custom-ap-wds
+cat << 'EOF' > package/base-files/files/etc/uci-defaults/99-custom-setup
 #!/bin/sh
-# سكريبت يعمل مرة واحدة عند أول إقلاع لتطبيق الإعدادات
 
 # الانتظار قليلاً لضمان اكتمال إقلاع النظام
 sleep 5
 
 # --- إعدادات الشبكة (Network) ---
-# إضافة منفذ WAN إلى جسر LAN (لجعل جميع المنافذ تعمل كـ LAN)
-# ملاحظة: في أجهزة 360T7 يعمل السوفت عادة بنظام DSA، واسم المنفذ يكون 'wan'
+# دمج منفذ WAN إلى جسر LAN (جميع المنافذ تعمل كـ LAN)
 uci add_list network.lan.ports='wan'
-# حذف واجهات WAN و WAN6 (حذف المنطق فقط، المنفذ الفيزيائي تم دمجه في LAN)
 uci -q delete network.wan
 uci -q delete network.wan6
-# تثبيت عنوان IP
 uci set network.lan.ipaddr='192.168.1.20'
 uci set network.lan.netmask='255.255.255.0'
 uci commit network
@@ -68,37 +58,56 @@ uci commit dhcp
 # تشغيل الراديو (Radio)
 uci set wireless.radio0.disabled='0'
 uci set wireless.radio1.disabled='0'
-# تحويل الواجهات إلى وضع AP مع تفعيل WDS
-uci set wireless.@wifi-iface[0].mode='ap'
-uci set wireless.@wifi-iface[0].wds='1'
-uci set wireless.@wifi-iface[1].mode='ap'
-uci set wireless.@wifi-iface[1].wds='1'
+
+# إعدادات راديو 2.4GHz (radio0)
+uci set wireless.radio0.country='PA'
+uci set wireless.radio0.channel='5'
+uci set wireless.radio0.htmode='HT20'
+uci set wireless.radio0.txpower='30'
+uci set wireless.radio0.band='2g'
+
+# إعدادات راديو 5GHz (radio1)
+uci set wireless.radio1.country='PA'
+uci set wireless.radio1.channel='116'
+uci set wireless.radio1.htmode='HT40'
+uci set wireless.radio1.txpower='30'
+uci set wireless.radio1.band='5g'
+
+# إعدادات واجهة 2.4G
+uci set wireless.default_radio0.mode='ap'
+uci set wireless.default_radio0.ssid='AbduRaheem_2G'
+uci set wireless.default_radio0.network='lan'
+uci set wireless.default_radio0.encryption='none'
+uci set wireless.default_radio0.disabled='0'
+
+# إعدادات واجهة 5G (مع تفعيل WDS)
+uci set wireless.default_radio1.mode='ap'
+uci set wireless.default_radio1.wds='1'
+uci set wireless.default_radio1.ssid='AbduRaheem_5G'
+uci set wireless.default_radio1.network='lan'
+uci set wireless.default_radio1.encryption='none'
+uci set wireless.default_radio1.disabled='0'
+
 uci commit wireless
 
-# إعادة تشغيل الشبكة لتطبيق التغييرات فوراً
+# إعادة تشغيل الشبكة والوايرلس لتطبيق التغييرات فوراً
 /etc/init.d/network restart
+wifi reload
 
 exit 0
 EOF
 
 # جعل السكريبت قابلاً للتنفيذ
-chmod +x package/base-files/files/etc/uci-defaults/99-custom-ap-wds
+chmod +x package/base-files/files/etc/uci-defaults/99-custom-setup
 
-# 6. تغيير شعار OpenWrt و LuCI
-# نسخ الصورة المخصصة لتحل محل شعار ثيم Argon
+# 6. تغيير شعار OpenWrt و LuCI (مع تعديل CSS للشعار العريض)
 if [ -f "$GITHUB_WORKSPACE/custom_logo.png" ]; then
-    # المسار الأساسي لشعار ثيم Argon
     cp $GITHUB_WORKSPACE/custom_logo.png feeds/luci/themes/luci-theme-argon/htdocs/luci-static/argon/img/logo.png
-    # المسار الخاص بالوضع الليلي/النهاري في بعض إصدارات Argon
     cp $GITHUB_WORKSPACE/custom_logo.png feeds/luci/themes/luci-theme-argon/htdocs/luci-static/argon/img/logo_blue.png
-    
-    # استبدال شعار LuCI الافتراضي (لضمان التغيير في كل مكان)
     cp $GITHUB_WORKSPACE/custom_logo.png package/feeds/luci/luci-base/htdocs/luci-static/resources/logo.png
     
-    # --- تعديل CSS للثيم ليسمح بشعار عريض (البانر) ---
     echo ".brand { width: auto !important; min-width: 200px; }" >> feeds/luci/themes/luci-theme-argon/htdocs/luci-static/argon/css/cascade.css
     echo ".brand .logo img { max-width: 250px !important; height: auto !important; }" >> feeds/luci/themes/luci-theme-argon/htdocs/luci-static/argon/css/cascade.css
-    
     echo "تم استبدال الشعار وتعديل CSS بنجاح!"
 else
     echo "تحذير: لم يتم العثور على ملف custom_logo.png في المستودع!"
